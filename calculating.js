@@ -1,456 +1,353 @@
-class CalculatingManager {
+// calculating.js - Sistem Perhitungan Lengkap
+
+class CalculationSystem {
     constructor() {
         this.salesData = [];
+        this.financialData = [];
         this.expensesData = [];
-        this.cashFlowData = [];
-        this.employeeData = [];
+        this.salariesData = [];
         this.init();
     }
 
     init() {
         this.setupEventListeners();
+        this.initializeDefaultData();
     }
 
     setupEventListeners() {
+        // Listen untuk perubahan data realtime
         document.addEventListener('salesDataUpdated', (event) => {
             this.salesData = event.detail;
-            this.calculateAll();
+            this.recalculateAll();
+        });
+
+        document.addEventListener('financialDataUpdated', (event) => {
+            this.financialData = event.detail;
+            this.recalculateAll();
         });
 
         document.addEventListener('expensesDataUpdated', (event) => {
             this.expensesData = event.detail;
-            this.calculateAll();
+            this.recalculateAll();
         });
 
-        document.addEventListener('cashFlowDataUpdated', (event) => {
-            this.cashFlowData = event.detail;
-            this.calculateAll();
+        document.addEventListener('salariesDataUpdated', (event) => {
+            this.salariesData = event.detail;
+            this.recalculateAll();
         });
     }
 
-    // MAIN CALCULATION FUNCTION
-    calculateAll() {
-        const calculations = {
-            salesSummary: this.calculateSalesSummary(),
-            financialSummary: this.calculateFinancialSummary(),
-            cashFlow: this.calculateCashFlow(),
-            projections: this.calculateProjections(),
-            supplierPayments: this.calculateSupplierPayments(),
-            employeePerformance: this.calculateEmployeePerformance()
-        };
-
-        // Dispatch event with all calculations
-        document.dispatchEvent(new CustomEvent('calculationsUpdated', {
-            detail: calculations
-        }));
-
-        return calculations;
+    initializeDefaultData() {
+        // Data default untuk testing
+        this.salesData = this.getSampleSalesData();
+        this.financialData = this.getSampleFinancialData();
+        this.expensesData = this.getSampleExpensesData();
+        this.salariesData = this.getSampleSalariesData();
     }
 
-    // 1. BASIC SALES CALCULATIONS
-    calculateSalesSummary() {
-        if (!this.salesData.length) return {};
+    // === PERHITUNGAN DASAR PENJUALAN ===
 
-        const summary = {
-            totalSold: 0,
-            totalRevenue: 0,
-            totalCost: 0,
-            totalProfit: 0,
-            averageSale: 0,
-            bestSellingProduct: null,
-            dailyAverage: 0
-        };
+    calculateTerjual(stok, sisa) {
+        const terjual = parseInt(stok) - parseInt(sisa);
+        return Math.max(0, terjual); // Pastikan tidak negatif
+    }
 
-        const productSales = {};
-        const dailySales = {};
+    calculateUangSupplier(terjual, hargaBeli) {
+        const hargaBeliNumber = this.parseCurrency(hargaBeli);
+        return terjual * hargaBeliNumber;
+    }
 
-        this.salesData.forEach(sale => {
-            const sold = sale.stok - sale.sisa;
-            const revenue = sold * sale.hargaJual;
-            const cost = sold * sale.hargaBeli;
-            const profit = revenue - cost;
+    calculateKeuntungan(terjual, hargaJual, hargaBeli) {
+        const hargaJualNumber = this.parseCurrency(hargaJual);
+        const hargaBeliNumber = this.parseCurrency(hargaBeli);
+        return (hargaJualNumber - hargaBeliNumber) * terjual;
+    }
 
-            summary.totalSold += sold;
-            summary.totalRevenue += revenue;
-            summary.totalCost += cost;
-            summary.totalProfit += profit;
+    calculateOmzet(terjual, hargaJual) {
+        const hargaJualNumber = this.parseCurrency(hargaJual);
+        return terjual * hargaJualNumber;
+    }
 
-            // Product analysis
-            if (!productSales[sale.barang]) {
-                productSales[sale.barang] = { sold: 0, revenue: 0 };
-            }
-            productSales[sale.barang].sold += sold;
-            productSales[sale.barang].revenue += revenue;
+    // === PERHITUNGAN TOTAL & AGGREGASI ===
 
-            // Daily analysis
-            const date = new Date(sale.tanggal).toDateString();
-            if (!dailySales[date]) dailySales[date] = 0;
-            dailySales[date] += revenue;
+    calculateTotalUangSupplier(salesData, supplierName = null) {
+        let total = 0;
+        const filteredData = supplierName ? 
+            salesData.filter(sale => sale.namaSupplier === supplierName) : 
+            salesData;
+
+        filteredData.forEach(sale => {
+            total += sale.uangSupplier || 0;
         });
 
-        // Find best selling product
-        let maxSold = 0;
-        for (const [product, data] of Object.entries(productSales)) {
-            if (data.sold > maxSold) {
-                maxSold = data.sold;
-                summary.bestSellingProduct = { product, sold: data.sold, revenue: data.revenue };
-            }
+        return total;
+    }
+
+    calculateTotalOmzet(salesData, filter = {}) {
+        const filteredData = this.filterSalesData(salesData, filter);
+        return filteredData.reduce((total, sale) => total + (sale.omzet || 0), 0);
+    }
+
+    calculateTotalLabaKotor(salesData, filter = {}) {
+        const filteredData = this.filterSalesData(salesData, filter);
+        return filteredData.reduce((total, sale) => total + (sale.labaKotor || 0), 0);
+    }
+
+    calculateTotalTerjual(salesData, filter = {}) {
+        const filteredData = this.filterSalesData(salesData, filter);
+        return filteredData.reduce((total, sale) => total + (sale.terjual || 0), 0);
+    }
+
+    // === PERHITUNGAN KEUANGAN KOMPREHENSIF ===
+
+    calculateLabaBersih(totalLabaKotor, totalGaji, totalPengeluaranLain) {
+        return totalLabaKotor - totalGaji - totalPengeluaranLain;
+    }
+
+    calculateKasTerbaru(kasSaatIni, labaBersih, rugi = 0) {
+        return kasSaatIni + labaBersih - rugi;
+    }
+
+    calculateRugi(totalPengeluaran, totalPendapatan) {
+        return Math.max(0, totalPengeluaran - totalPendapatan);
+    }
+
+    // === PROYEKSI PENJUALAN YANG AKURAT ===
+
+    calculateProyeksiPenjualan(salesData, periode, options = {}) {
+        const historicalData = this.getHistoricalData(salesData, periode);
+        
+        switch (options.metode) {
+            case 'regresi-linear':
+                return this.proyeksiRegresiLinear(historicalData, periode);
+            case 'rata-rata-bergerak':
+                return this.proyeksiRataRataBergerak(historicalData, options.windowSize || 3);
+            case 'musiman':
+                return this.proyeksiMusiman(historicalData, periode);
+            default:
+                return this.proyeksiRegresiLinear(historicalData, periode);
         }
-
-        // Calculate averages
-        summary.averageSale = summary.totalRevenue / this.salesData.length;
-        summary.dailyAverage = Object.values(dailySales).reduce((a, b) => a + b, 0) / Object.keys(dailySales).length;
-
-        return summary;
     }
 
-    // 2. FINANCIAL CALCULATIONS
-    calculateFinancialSummary() {
-        const salesSummary = this.calculateSalesSummary();
-        const expenses = this.calculateTotalExpenses();
-        const salaries = this.calculateTotalSalaries();
+    proyeksiRegresiLinear(data, periode) {
+        if (data.length < 2) return data;
 
-        const grossProfit = salesSummary.totalProfit || 0;
-        const totalExpenses = expenses.total + salaries.total;
-        const netProfit = grossProfit - totalExpenses;
-        const profitMargin = salesSummary.totalRevenue > 0 ? (netProfit / salesSummary.totalRevenue) * 100 : 0;
-
-        return {
-            grossProfit,
-            totalExpenses,
-            netProfit,
-            profitMargin: Math.round(profitMargin * 100) / 100,
-            operatingCostRatio: salesSummary.totalRevenue > 0 ? (totalExpenses / salesSummary.totalRevenue) * 100 : 0,
-            breakEvenPoint: this.calculateBreakEvenPoint()
-        };
-    }
-
-    // 3. CASH FLOW CALCULATIONS
-    calculateCashFlow() {
-        const currentCash = this.getCurrentCash();
-        const financialSummary = this.calculateFinancialSummary();
-        
-        const cashIn = this.salesData.reduce((total, sale) => {
-            return total + ((sale.stok - sale.sisa) * sale.hargaJual);
-        }, 0);
-
-        const cashOut = this.calculateTotalExpenses().total + this.calculateTotalSalaries().total;
-        const netCashFlow = cashIn - cashOut;
-        const projectedCash = currentCash + netCashFlow;
-
-        return {
-            currentCash,
-            cashIn,
-            cashOut,
-            netCashFlow,
-            projectedCash,
-            cashFlowRatio: cashOut > 0 ? cashIn / cashOut : 0
-        };
-    }
-
-    // 4. SALES PROJECTIONS (Advanced Algorithm)
-    calculateProjections() {
-        if (this.salesData.length < 7) return {}; // Need at least 7 days of data
-
-        const dailySales = this.groupSalesByDay();
-        const dates = Object.keys(dailySales).sort();
-        const salesValues = dates.map(date => dailySales[date].revenue);
-
-        // Multiple projection methods
-        const movingAverage = this.calculateMovingAverage(salesValues, 7);
-        const linearRegression = this.calculateLinearRegression(salesValues);
-        const seasonalAdjustment = this.calculateSeasonalAdjustment(salesValues);
-
-        // Weighted average of different methods
-        const nextDayProjection = 
-            (movingAverage.next * 0.4) + 
-            (linearRegression.next * 0.4) + 
-            (seasonalAdjustment.next * 0.2);
-
-        const nextWeekProjection = nextDayProjection * 7;
-        const nextMonthProjection = nextDayProjection * 30;
-
-        return {
-            nextDay: Math.round(nextDayProjection),
-            nextWeek: Math.round(nextWeekProjection),
-            nextMonth: Math.round(nextMonthProjection),
-            confidence: this.calculateConfidence(salesValues),
-            growthRate: this.calculateGrowthRate(salesValues),
-            trend: linearRegression.trend
-        };
-    }
-
-    // 5. SUPPLIER PAYMENT CALCULATIONS
-    calculateSupplierPayments() {
-        const supplierSummary = {};
-
-        this.salesData.forEach(sale => {
-            if (!supplierSummary[sale.nama]) {
-                supplierSummary[sale.nama] = {
-                    totalOwed: 0,
-                    totalItems: 0,
-                    products: {},
-                    lastTransaction: sale.tanggal
-                };
-            }
-
-            const sold = sale.stok - sale.sisa;
-            const owed = sold * sale.hargaBeli;
-
-            supplierSummary[sale.nama].totalOwed += owed;
-            supplierSummary[sale.nama].totalItems += sold;
-
-            if (!supplierSummary[sale.nama].products[sale.barang]) {
-                supplierSummary[sale.nama].products[sale.barang] = 0;
-            }
-            supplierSummary[sale.nama].products[sale.barang] += sold;
-        });
-
-        // Calculate payment priorities
-        const suppliers = Object.entries(supplierSummary).map(([name, data]) => ({
-            name,
-            ...data,
-            priority: this.calculatePaymentPriority(data.totalOwed, data.lastTransaction)
-        }));
-
-        suppliers.sort((a, b) => b.priority - a.priority);
-
-        return {
-            totalOwed: Object.values(supplierSummary).reduce((sum, s) => sum + s.totalOwed, 0),
-            suppliers: suppliers,
-            averagePayment: Object.values(supplierSummary).reduce((sum, s) => sum + s.totalOwed, 0) / suppliers.length
-        };
-    }
-
-    // 6. EMPLOYEE PERFORMANCE CALCULATIONS
-    calculateEmployeePerformance() {
-        const employeePerformance = {};
-
-        this.salesData.forEach(sale => {
-            if (!employeePerformance[sale.namaKaryawan]) {
-                employeePerformance[sale.namaKaryawan] = {
-                    totalSales: 0,
-                    totalRevenue: 0,
-                    totalProfit: 0,
-                    productsSold: 0,
-                    transactions: 0,
-                    averageSale: 0
-                };
-            }
-
-            const sold = sale.stok - sale.sisa;
-            const revenue = sold * sale.hargaJual;
-            const profit = revenue - (sold * sale.hargaBeli);
-
-            employeePerformance[sale.namaKaryawan].totalSales += sold;
-            employeePerformance[sale.namaKaryawan].totalRevenue += revenue;
-            employeePerformance[sale.namaKaryawan].totalProfit += profit;
-            employeePerformance[sale.namaKaryawan].productsSold += 1;
-            employeePerformance[sale.namaKaryawan].transactions += 1;
-        });
-
-        // Calculate averages and performance metrics
-        Object.keys(employeePerformance).forEach(employee => {
-            const data = employeePerformance[employee];
-            data.averageSale = data.totalRevenue / data.transactions;
-            data.profitMargin = (data.totalProfit / data.totalRevenue) * 100;
-            data.efficiency = data.totalProfit / data.productsSold;
-        });
-
-        return employeePerformance;
-    }
-
-    // ADVANCED CALCULATION METHODS
-    calculateMovingAverage(data, period) {
-        if (data.length < period) return { next: 0, average: 0 };
-
-        const lastValues = data.slice(-period);
-        const average = lastValues.reduce((a, b) => a + b, 0) / period;
-        
-        // Simple projection based on recent trend
-        const trend = lastValues[lastValues.length - 1] - lastValues[0];
-        const next = average + (trend / period);
-
-        return { next, average };
-    }
-
-    calculateLinearRegression(data) {
         const n = data.length;
         let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
 
-        for (let i = 0; i < n; i++) {
-            sumX += i;
-            sumY += data[i];
-            sumXY += i * data[i];
-            sumX2 += i * i;
-        }
+        data.forEach((point, index) => {
+            const x = index + 1;
+            const y = point.omzet || point.total || 0;
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumX2 += x * x;
+        });
 
         const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
         const intercept = (sumY - slope * sumX) / n;
-        const next = slope * n + intercept;
 
-        return { next, slope, intercept, trend: slope > 0 ? 'up' : slope < 0 ? 'down' : 'stable' };
-    }
+        // Prediksi untuk periode berikutnya
+        const nextX = n + 1;
+        const prediksi = slope * nextX + intercept;
 
-    calculateSeasonalAdjustment(data) {
-        // Simple weekly seasonality detection
-        if (data.length < 14) return { next: 0 }; // Need 2 weeks of data
-
-        const weeklyPattern = [];
-        for (let i = 7; i < data.length; i++) {
-            weeklyPattern.push(data[i] / data[i - 7]);
-        }
-
-        const avgSeasonality = weeklyPattern.reduce((a, b) => a + b, 0) / weeklyPattern.length;
-        const next = data[data.length - 7] * avgSeasonality;
-
-        return { next, seasonality: avgSeasonality };
-    }
-
-    calculateBreakEvenPoint() {
-        const fixedCosts = this.calculateTotalExpenses().fixed;
-        const avgProfitPerUnit = this.salesData.reduce((sum, sale) => {
-            return sum + (sale.hargaJual - sale.hargaBeli);
-        }, 0) / this.salesData.length;
-
-        return avgProfitPerUnit > 0 ? Math.ceil(fixedCosts / avgProfitPerUnit) : 0;
-    }
-
-    calculateGrowthRate(data) {
-        if (data.length < 2) return 0;
-
-        const firstPeriod = data.slice(0, Math.floor(data.length / 2)).reduce((a, b) => a + b, 0);
-        const secondPeriod = data.slice(Math.floor(data.length / 2)).reduce((a, b) => a + b, 0);
-
-        return ((secondPeriod - firstPeriod) / firstPeriod) * 100;
-    }
-
-    calculateConfidence(data) {
-        if (data.length < 2) return 0;
-
-        const mean = data.reduce((a, b) => a + b, 0) / data.length;
-        const variance = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / data.length;
-        const stdDev = Math.sqrt(variance);
-        const cv = (stdDev / mean) * 100; // Coefficient of variation
-
-        // Lower CV = higher confidence
-        return Math.max(0, 100 - cv);
-    }
-
-    calculatePaymentPriority(amount, lastTransaction) {
-        const daysSinceTransaction = Math.floor((new Date() - new Date(lastTransaction)) / (1000 * 60 * 60 * 24));
-        const amountWeight = Math.min(amount / 1000000, 1); // Normalize amount
-        const timeWeight = Math.max(0, 1 - (daysSinceTransaction / 30)); // Older transactions have lower priority
-
-        return (amountWeight * 0.7) + (timeWeight * 0.3);
-    }
-
-    // HELPER METHODS
-    groupSalesByDay() {
-        const dailySales = {};
-
-        this.salesData.forEach(sale => {
-            const date = new Date(sale.tanggal).toDateString();
-            if (!dailySales[date]) {
-                dailySales[date] = { revenue: 0, transactions: 0, items: 0 };
-            }
-
-            const sold = sale.stok - sale.sisa;
-            dailySales[date].revenue += sold * sale.hargaJual;
-            dailySales[date].transactions += 1;
-            dailySales[date].items += sold;
-        });
-
-        return dailySales;
-    }
-
-    calculateTotalExpenses() {
-        const expenses = {
-            fixed: 0,
-            variable: 0,
-            operational: 0,
-            total: 0
+        return {
+            prediksi: Math.max(0, prediksi),
+            confidence: this.calculateConfidence(data, slope, intercept),
+            trend: slope > 0 ? 'naik' : slope < 0 ? 'turun' : 'stabil'
         };
+    }
 
-        this.expensesData.forEach(expense => {
-            expenses.total += expense.amount;
+    proyeksiRataRataBergerak(data, windowSize) {
+        if (data.length < windowSize) return { prediksi: 0, confidence: 0 };
+
+        const recentData = data.slice(-windowSize);
+        const average = recentData.reduce((sum, point) => 
+            sum + (point.omzet || point.total || 0), 0) / windowSize;
+
+        return {
+            prediksi: average,
+            confidence: this.calculateVariance(recentData, average),
+            trend: this.analyzeTrend(recentData)
+        };
+    }
+
+    proyeksiMusiman(data, periode) {
+        // Analisis pola musiman berdasarkan data historis
+        const seasonalPatterns = this.analyzeSeasonalPatterns(data, periode);
+        const lastDataPoint = data[data.length - 1];
+        
+        return {
+            prediksi: lastDataPoint.omzet * seasonalPatterns.factor,
+            confidence: seasonalPatterns.confidence,
+            trend: seasonalPatterns.trend
+        };
+    }
+
+    // === ANALISIS DATA UNTUK PROYEKSI ===
+
+    analyzeSeasonalPatterns(data, periode) {
+        const groupedData = this.groupByPeriod(data, periode);
+        const averages = this.calculatePeriodAverages(groupedData);
+        
+        return {
+            factor: this.calculateSeasonalFactor(averages),
+            confidence: this.calculateSeasonalConfidence(averages),
+            trend: this.analyzeSeasonalTrend(averages)
+        };
+    }
+
+    calculateSeasonalFactor(averages) {
+        const overallAverage = averages.reduce((sum, avg) => sum + avg, 0) / averages.length;
+        const currentAverage = averages[averages.length - 1] || overallAverage;
+        return currentAverage / overallAverage;
+    }
+
+    analyzeTrend(data) {
+        if (data.length < 2) return 'stabil';
+        
+        const firstValue = data[0].omzet || data[0].total || 0;
+        const lastValue = data[data.length - 1].omzet || data[data.length - 1].total || 0;
+        
+        const change = ((lastValue - firstValue) / firstValue) * 100;
+        
+        if (change > 5) return 'naik';
+        if (change < -5) return 'turun';
+        return 'stabil';
+    }
+
+    calculateConfidence(data, slope, intercept) {
+        const n = data.length;
+        let ssTotal = 0, ssResidual = 0;
+        const meanY = data.reduce((sum, point) => sum + (point.omzet || 0), 0) / n;
+
+        data.forEach((point, index) => {
+            const x = index + 1;
+            const y = point.omzet || 0;
+            const yPred = slope * x + intercept;
             
-            if (expense.type === 'fixed') expenses.fixed += expense.amount;
-            else if (expense.type === 'variable') expenses.variable += expense.amount;
-            else expenses.operational += expense.amount;
+            ssTotal += Math.pow(y - meanY, 2);
+            ssResidual += Math.pow(y - yPred, 2);
         });
 
-        return expenses;
+        const rSquared = 1 - (ssResidual / ssTotal);
+        return Math.max(0, Math.min(1, rSquared));
     }
 
-    calculateTotalSalaries() {
-        // This would typically come from employee data
-        const salaries = {
-            total: 0,
-            base: 0,
-            commission: 0,
-            bonus: 0
-        };
+    calculateVariance(data, mean) {
+        const variance = data.reduce((sum, point) => {
+            const value = point.omzet || point.total || 0;
+            return sum + Math.pow(value - mean, 2);
+        }, 0) / data.length;
 
-        // Placeholder calculation
-        salaries.total = this.employeeData.reduce((total, emp) => total + emp.salary, 0);
-        
-        return salaries;
+        return 1 - (variance / mean); // Normalized confidence
     }
 
-    getCurrentCash() {
-        if (!this.cashFlowData.length) return 0;
+    // === FILTERING DAN GROUPING DATA ===
+
+    filterSalesData(salesData, filter) {
+        let filteredData = [...salesData];
+
+        if (filter.startDate && filter.endDate) {
+            filteredData = filteredData.filter(sale => {
+                const saleDate = new Date(sale.tanggal);
+                return saleDate >= new Date(filter.startDate) && 
+                       saleDate <= new Date(filter.endDate);
+            });
+        }
+
+        if (filter.employeeId) {
+            filteredData = filteredData.filter(sale => sale.ownerId === filter.employeeId);
+        }
+
+        if (filter.supplierName) {
+            filteredData = filteredData.filter(sale => sale.namaSupplier === filter.supplierName);
+        }
+
+        return filteredData;
+    }
+
+    groupByPeriod(data, periodType) {
+        const groups = {};
         
-        const latestCashFlow = this.cashFlowData.reduce((latest, current) => {
-            return new Date(current.date) > new Date(latest.date) ? current : latest;
+        data.forEach(item => {
+            const key = this.getPeriodKey(item.tanggal, periodType);
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(item);
         });
 
-        return latestCashFlow.balance || 0;
+        return groups;
     }
 
-    // REAL-TIME CALCULATION TRIGGERS
-    addSale(saleData) {
-        const calculatedSale = {
-            ...saleData,
-            terjual: this.calculateTerjual(saleData.stok, saleData.sisa),
-            uangSupplier: this.calculateUangSupplier(saleData.stok, saleData.sisa, saleData.hargaBeli),
-            keuntungan: this.calculateKeuntungan(saleData.stok, saleData.sisa, saleData.hargaJual, saleData.hargaBeli)
-        };
-
-        this.salesData.push(calculatedSale);
-        this.calculateAll();
+    getPeriodKey(dateString, periodType) {
+        const date = new Date(dateString);
         
-        return calculatedSale;
-    }
-
-    updateSale(saleId, updatedData) {
-        const index = this.salesData.findIndex(sale => sale.id === saleId);
-        if (index !== -1) {
-            this.salesData[index] = {
-                ...this.salesData[index],
-                ...updatedData,
-                terjual: this.calculateTerjual(updatedData.stok, updatedData.sisa),
-                uangSupplier: this.calculateUangSupplier(updatedData.stok, updatedData.sisa, updatedData.hargaBeli),
-                keuntungan: this.calculateKeuntungan(updatedData.stok, updatedData.sisa, updatedData.hargaJual, updatedData.hargaBeli)
-            };
-            this.calculateAll();
+        switch (periodType) {
+            case 'harian':
+                return date.toISOString().split('T')[0];
+            case 'mingguan':
+                const weekNumber = this.getWeekNumber(date);
+                return `${date.getFullYear()}-W${weekNumber}`;
+            case 'bulanan':
+                return `${date.getFullYear()}-${date.getMonth() + 1}`;
+            case 'tahunan':
+                return date.getFullYear().toString();
+            default:
+                return date.toISOString().split('T')[0];
         }
     }
 
-    // BASIC CALCULATION FORMULAS
-    calculateTerjual(stok, sisa) {
-        return stok - sisa;
+    getWeekNumber(date) {
+        const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+        const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+        return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
     }
 
-    calculateUangSupplier(stok, sisa, hargaBeli) {
-        return (stok - sisa) * hargaBeli;
+    getHistoricalData(salesData, periode) {
+        const groupedData = this.groupByPeriod(salesData, periode);
+        const historicalData = [];
+        
+        Object.keys(groupedData).sort().forEach(period => {
+            const periodData = groupedData[period];
+            const summary = this.calculatePeriodSummary(periodData);
+            historicalData.push({
+                periode: period,
+                ...summary
+            });
+        });
+
+        return historicalData;
     }
 
-    calculateKeuntungan(stok, sisa, hargaJual, hargaBeli) {
-        return (stok - sisa) * (hargaJual - hargaBeli);
+    calculatePeriodSummary(periodData) {
+        return {
+            omzet: periodData.reduce((sum, sale) => sum + (sale.omzet || 0), 0),
+            labaKotor: periodData.reduce((sum, sale) => sum + (sale.labaKotor || 0), 0),
+            totalTerjual: periodData.reduce((sum, sale) => sum + (sale.terjual || 0), 0),
+            uangSupplier: periodData.reduce((sum, sale) => sum + (sale.uangSupplier || 0), 0)
+        };
     }
 
-    // UTILITY METHODS
+    calculatePeriodAverages(groupedData) {
+        const averages = [];
+        
+        Object.values(groupedData).forEach(periodData => {
+            const summary = this.calculatePeriodSummary(periodData);
+            averages.push(summary.omzet);
+        });
+
+        return averages;
+    }
+
+    // === UTILITY FUNCTIONS ===
+
+    parseCurrency(currencyString) {
+        if (typeof currencyString === 'number') return currencyString;
+        
+        const numberString = currencyString.toString().replace(/[^\d]/g, '');
+        return parseInt(numberString) || 0;
+    }
+
     formatCurrency(amount) {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -463,13 +360,176 @@ class CalculatingManager {
         return new Intl.NumberFormat('id-ID').format(number);
     }
 
-    parseCurrency(currencyString) {
-        return parseInt(currencyString.replace(/[^\d]/g, '')) || 0;
+    // === RECALCULATION TRIGGER ===
+
+    recalculateAll() {
+        this.calculateFinancialSummary();
+        this.calculateCashFlow();
+        this.updateProjections();
+        this.updateReports();
+    }
+
+    calculateFinancialSummary() {
+        const totalOmzet = this.calculateTotalOmzet(this.salesData);
+        const totalLabaKotor = this.calculateTotalLabaKotor(this.salesData);
+        const totalGaji = this.calculateTotalSalaries();
+        const totalPengeluaran = this.calculateTotalExpenses();
+        const labaBersih = this.calculateLabaBersih(totalLabaKotor, totalGaji, totalPengeluaran);
+
+        const financialSummary = {
+            totalOmzet,
+            totalLabaKotor,
+            totalGaji,
+            totalPengeluaran,
+            labaBersih,
+            tanggal: new Date().toISOString()
+        };
+
+        this.triggerEvent('financialSummaryCalculated', financialSummary);
+        return financialSummary;
+    }
+
+    calculateCashFlow() {
+        const financialSummary = this.calculateFinancialSummary();
+        const kasSaatIni = this.getCurrentCash();
+        const kasTerbaru = this.calculateKasTerbaru(kasSaatIni, financialSummary.labaBersih);
+
+        const cashFlow = {
+            kasSaatIni,
+            kasTerbaru,
+            ...financialSummary
+        };
+
+        this.triggerEvent('cashFlowCalculated', cashFlow);
+        return cashFlow;
+    }
+
+    calculateTotalSalaries() {
+        return this.salariesData.reduce((total, salary) => total + salary.jumlah, 0);
+    }
+
+    calculateTotalExpenses() {
+        return this.expensesData.reduce((total, expense) => total + expense.jumlah, 0);
+    }
+
+    getCurrentCash() {
+        // Dalam implementasi real, ini akan mengambil dari database
+        return 12500000; // Default value
+    }
+
+    updateProjections() {
+        const proyeksiMingguan = this.calculateProyeksiPenjualan(this.salesData, 'mingguan');
+        const proyeksiBulanan = this.calculateProyeksiPenjualan(this.salesData, 'bulanan');
+        
+        this.triggerEvent('projectionsUpdated', {
+            mingguan: proyeksiMingguan,
+            bulanan: proyeksiBulanan
+        });
+    }
+
+    updateReports() {
+        const laporanHarian = this.generateDailyReport();
+        const laporanMingguan = this.generateWeeklyReport();
+        const laporanBulanan = this.generateMonthlyReport();
+        
+        this.triggerEvent('reportsUpdated', {
+            harian: laporanHarian,
+            mingguan: laporanMingguan,
+            bulanan: laporanBulanan
+        });
+    }
+
+    generateDailyReport() {
+        const today = new Date().toISOString().split('T')[0];
+        return this.filterSalesData(this.salesData, {
+            startDate: today,
+            endDate: today
+        });
+    }
+
+    generateWeeklyReport() {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        return this.filterSalesData(this.salesData, {
+            startDate: oneWeekAgo.toISOString().split('T')[0],
+            endDate: new Date().toISOString().split('T')[0]
+        });
+    }
+
+    generateMonthlyReport() {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        
+        return this.filterSalesData(this.salesData, {
+            startDate: oneMonthAgo.toISOString().split('T')[0],
+            endDate: new Date().toISOString().split('T')[0]
+        });
+    }
+
+    triggerEvent(eventName, detail) {
+        document.dispatchEvent(new CustomEvent(eventName, { detail }));
+    }
+
+    // === SAMPLE DATA FOR TESTING ===
+
+    getSampleSalesData() {
+        return [
+            {
+                id: '1',
+                tanggal: '2023-06-01',
+                nama: 'Supplier A',
+                barang: 'Keripik Kentang',
+                stok: 50,
+                sisa: 15,
+                terjual: 35,
+                hargaBeli: 5000,
+                hargaJual: 8000,
+                uangSupplier: 175000,
+                labaKotor: 105000,
+                omzet: 280000,
+                ownerId: 'employee1'
+            },
+            {
+                id: '2',
+                tanggal: '2023-06-01',
+                nama: 'Supplier B',
+                barang: 'Kacang Goreng',
+                stok: 40,
+                sisa: 22,
+                terjual: 18,
+                hargaBeli: 4000,
+                hargaJual: 6000,
+                uangSupplier: 72000,
+                labaKotor: 36000,
+                omzet: 108000,
+                ownerId: 'employee2'
+            }
+        ];
+    }
+
+    getSampleFinancialData() {
+        return [
+            { tanggal: '2023-06-01', pemasukan: 2500000, pengeluaran: 500000 },
+            { tanggal: '2023-06-02', pemasukan: 2800000, pengeluaran: 600000 }
+        ];
+    }
+
+    getSampleExpensesData() {
+        return [
+            { id: '1', tanggal: '2023-06-01', kategori: 'Operasional', jumlah: 500000 },
+            { id: '2', tanggal: '2023-06-01', kategori: 'Transportasi', jumlah: 250000 }
+        ];
+    }
+
+    getSampleSalariesData() {
+        return [
+            { id: '1', karyawan: 'Karyawan A', jumlah: 2500000 },
+            { id: '2', karyawan: 'Karyawan B', jumlah: 2500000 }
+        ];
     }
 }
 
-// Initialize Calculating Manager
-const calculatingManager = new CalculatingManager();
-
-// Export for use in other files
-window.calculatingManager = calculatingManager;
+// Initialize calculation system
+const calculationSystem = new CalculationSystem();
+window.calculationSystem = calculationSystem;
