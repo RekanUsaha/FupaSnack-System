@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fupa Snack - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <style>
+        :root {
+            --primary-color: #ffffff;
+            --secondary-color: #4fc3f7;
+            --accent-color: #29b6f6;
+            --text-color: #333333;
+            --light-text: #666666;
+            --border-color: #e0e0e0;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        .dark-mode {
+            --primary-color: #1a1a1a;
+            --secondary-color: #0277bd;
+            --accent-color: #0288d1;
+            --text-color: #f5f5f5;
+            --light-text: #b0b0b0;
+            --border-color: #333333;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            transition: var(--transition);
+            overflow-x: hidden;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+
+        /* Header Styles */
+        .header {
+            background-color: var(--primary-color);
+            padding: 15px 0;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: var(--text-color);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .icon-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .dark-mode .icon-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Popup Styles */
+        .popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+        }
+
+        .popup.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .popup-content {
+            background-color: var(--primary-color);
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow);
+            transform: translateY(-20px);
+            transition: var(--transition);
+        }
+
+        .popup.active .popup-content {
+            transform: translateY(0);
+        }
+
+        .popup-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popup-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .popup-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+
+        .popup-body {
+            padding: 20px;
+        }
+
+        .menu-list {
+            list-style: none;
+        }
+
+        .menu-item {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-item:hover {
+            color: var(--accent-color);
+        }
+
+        .menu-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .submenu {
+            list-style: none;
+            margin-left: 20px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .submenu.active {
+            display: block;
+        }
+
+        .submenu-item {
+            padding: 8px 0;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .submenu-item:hover {
+            color: var(--accent-color);
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            padding: 20px 0;
+            min-height: calc(100vh - 70px);
+            overflow-y: auto;
+        }
+
+        .section-header {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tabs::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .tabs::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .tab.active {
+            border-bottom: 2px solid var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            max-height: 400px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: rgba(79, 195, 247, 0.1);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .dark-mode tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+            transition: var(--transition);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(41, 182, 246, 0.2);
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(79, 195, 247, 0.1);
+        }
+
+        .btn-danger {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+
+        .btn-danger:hover {
+            background-color: #d32f2f;
+        }
+
+        /* Filter Styles */
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        /* Chart Styles */
+        .chart-container {
+            height: 300px;
+            background-color: var(--primary-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 15px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .chart-placeholder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: var(--light-text);
+            flex-direction: column;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .chart-btn {
+            padding: 8px 15px;
+            border: 1px solid var(--border-color);
+            background: var(--primary-color);
+            color: var(--text-color);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .chart-btn.active {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        /* Financial Summary */
+        .financial-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .financial-card {
+            background-color: var(--primary-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .financial-card h3 {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            color: var(--light-text);
+        }
+
+        .financial-card .amount {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .currency {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Responsive Styles */
+        @media (min-width: 768px) {
+            .header {
+                padding: 20px 0;
+            }
+            
+            .logo {
+                font-size: 1.8rem;
+            }
+            
+            .main-content {
+                padding: 30px 0;
+            }
+            
+            .section-title {
+                font-size: 1.8rem;
+            }
+        }
+
+        /* Animation for content switching */
+        .content-section {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .content-section.hidden {
+            display: none;
+            opacity: 0;
+        }
+
+        /* Custom period styles */
+        .custom-period-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .custom-period-group .filter-group {
+            flex: 1;
+        }
+
+        /* Input Detail table improvements */
+        #inputDetail table {
+            min-width: 1100px;
+        }
+
+        #inputDetail th, #inputDetail td {
+            padding: 15px 10px;
+            min-width: 100px;
+        }
+
+        #inputDetail input {
+            width: 100%;
+            min-width: 80px;
+            padding: 8px;
+        }
+
+        /* Manual input styles */
+        .manual-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .manual-input-card {
+            background-color: var(--primary-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: var(--shadow);
+        }
+
+        .manual-input-card h3 {
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .input-with-btn {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-with-btn input {
+            flex: 1;
+        }
+
+        .input-with-btn button {
+            white-space: nowrap;
+        }
+
+        /* Currency input styles */
+        .currency-input {
+            position: relative;
+        }
+
+        .currency-input input {
+            padding-left: 40px;
+        }
+
+        .currency-input::before {
+            content: "Rp";
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--light-text);
+            z-index: 1;
+        }
+
+        /* Actions section */
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Fullscreen chart styles */
+        .chart-fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 4px;
+            padding: 5px 8px;
+            cursor: pointer;
+            z-index: 10;
+            transition: var(--transition);
+        }
+
+        .dark-mode .chart-fullscreen-btn {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+        }
+
+        .chart-fullscreen-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .dark-mode .chart-fullscreen-btn:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .chart-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2000;
+            background: var(--primary-color);
+            padding: 20px;
+        }
+
+        .chart-container.fullscreen canvas {
+            height: 90% !important;
+        }
+
+        .chart-close-fullscreen {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            z-index: 2010;
+        }
+
+        /* Improved scrollable areas */
+        .scrollable {
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        .scrollable-table {
+            overflow: auto;
+        }
+
+        /* Login popup styles */
+        .login-popup {
+            z-index: 2000;
+        }
+
+        .login-popup .popup-content {
+            max-width: 350px;
+        }
+
+        .form-group.checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group.checkbox input {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">Fupa Snack</div>
+                <div class="header-actions">
+                    <button class="icon-btn" id="menuBtn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <button class="icon-btn" id="profileBtn">
+                        <i class="fas fa-user"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Dynamic Header -->
+            <div class="section-header" id="dynamicHeader">
+                <h1 class="section-title" id="pageTitle">Dashboard</h1>
+                <div class="tabs" id="tabNavigation"></div>
+            </div>
+
+            <!-- Content Sections -->
+            <div id="contentContainer">
+                <!-- Default Content -->
+                <div class="content-section" id="defaultContent">
+                    <p>Selamat datang di dashboard Fupa Snack. Pilih menu untuk mulai.</p>
+                </div>
+
+                <!-- Input Penjualan - Ringkas -->
+                <div class="content-section hidden" id="inputRingkas">
+                    <div class="table-container scrollable-table">
+                        <table id="ringkasTable">
+                            <thead>
+                                <tr>
+                                    <th>Aksi</th>
+                                    <th>Tanggal</th>
+                                    <th>Nama</th>
+                                    <th>Barang</th>
+                                    <th>Stok</th>
+                                    <th>Sisa</th>
+                                    <th>Terjual</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data akan diisi secara dinamis -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="simpanRingkasSpreadsheet">
+                            <i class="fas fa-save"></i> Simpan ke Spreadsheet
+                        </button>
+                        <button class="btn btn-secondary" id="simpanRingkasFirestore">
+                            <i class="fas fa-cloud"></i> Simpan ke Firestore
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Penjualan - Detail -->
+                <div class="content-section hidden" id="inputDetail">
+                    <div class="actions" style="margin-bottom: 15px;">
+                        <button class="btn btn-primary" id="tambahEntriDetail">
+                            <i class="fas fa-plus"></i> Tambah Entri
+                        </button>
+                    </div>
+                    <div class="table-container scrollable-table">
+                        <table id="detailTable">
+                            <thead>
+                                <tr>
+                                    <th>Aksi</th>
+                                    <th>Tanggal</th>
+                                    <th>Nama</th>
+                                    <th>Barang</th>
+                                    <th>Stok</th>
+                                    <th>Sisa</th>
+                                    <th>Terjual</th>
+                                    <th>Harga Beli</th>
+                                    <th>Harga Jual</th>
+                                    <th>Uang Supplier</th>
+                                    <th>Laba Kotor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data akan diisi secara dinamis -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="simpanDetailSpreadsheet">
+                            <i class="fas fa-save"></i> Simpan ke Spreadsheet
+                        </button>
+                        <button class="btn btn-secondary" id="simpanDetailFirestore">
+                            <i class="fas fa-cloud"></i> Simpan ke Firestore
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Penjualan - Uang Supplier -->
+                <div class="content-section hidden" id="inputSupplier">
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="supplierFilter">Filter Supplier</label>
+                            <input type="text" id="supplierFilter" placeholder="Cari supplier...">
+                        </div>
+                        <div class="filter-group">
+                            <label for="dateFilter">Filter Tanggal</label>
+                            <input type="date" id="dateFilter">
+                        </div>
+                    </div>
+                    <div class="table-container scrollable-table">
+                        <table id="supplierTable">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Nama Supplier</th>
+                                    <th>Total Uang Supplier</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data akan diisi secara dinamis -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="simpanSupplierSpreadsheet">
+                            <i class="fas fa-save"></i> Simpan ke Spreadsheet
+                        </button>
+                        <button class="btn btn-secondary" id="simpanSupplierFirestore">
+                            <i class="fas fa-cloud"></i> Simpan ke Firestore
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Proyeksi Penjualan -->
+                <div class="content-section hidden" id="proyeksiPenjualan">
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="periodeProyeksi">Periode</label>
+                            <select id="periodeProyeksi">
+                                <option value="mingguan">Mingguan</option>
+                                <option value="bulanan">Bulanan</option>
+                                <option value="tahunan">Tahunan</option>
+                                <option value="custom">Custom Periode</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" id="defaultDateProyeksi">
+                            <label for="tanggalProyeksi">Tanggal</label>
+                            <input type="date" id="tanggalProyeksi">
+                        </div>
+                        <div class="filter-group hidden" id="customPeriodProyeksi">
+                            <label for="tanggalMulaiProyeksi">Tanggal Mulai</label>
+                            <input type="date" id="tanggalMulaiProyeksi">
+                        </div>
+                        <div class="filter-group hidden" id="customPeriodProyeksi2">
+                            <label for="tanggalSelesaiProyeksi">Tanggal Selesai</label>
+                            <input type="date" id="tanggalSelesaiProyeksi">
+                        </div>
+                    </div>
+                    
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-chart-type="omzet">Omzet</button>
+                        <button class="chart-btn" data-chart-type="laba-kotor">Laba Kotor</button>
+                        <button class="chart-btn" data-chart-type="total-terjual">Total Terjual</button>
+                    </div>
+                    
+                    <div class="chart-container" id="proyeksiChartContainer">
+                        <button class="chart-fullscreen-btn" data-chart="proyeksiChart">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <canvas id="proyeksiChart"></canvas>
+                    </div>
+                    
+                    <div class="table-container scrollable-table">
+                        <table id="proyeksiTable">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Nama Karyawan</th>
+                                    <th>Omzet (Rp)</th>
+                                    <th>Total Terjual</th>
+                                    <th>Laba Kotor (Rp)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data akan diisi secara dinamis -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="simpanProyeksiSpreadsheet">
+                            <i class="fas fa-save"></i> Simpan ke Spreadsheet
+                        </button>
+                        <button class="btn btn-secondary" id="simpanProyeksiFirestore">
+                            <i class="fas fa-cloud"></i> Simpan ke Firestore
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Laporan Keuangan Ringkas -->
+                <div class="content-section hidden" id="laporanRingkas">
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="periodeRingkas">Periode</label>
+                            <select id="periodeRingkas">
+                                <option value="harian">Harian</option>
+                                <option value="mingguan">Mingguan</option>
+                                <option value="bulanan">Bulanan</option>
+                                <option value="tahunan">Tahunan</option>
+                                <option value="custom">Custom Periode</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" id="defaultDateRingkas">
+                            <label for="tanggalRingkas">Tanggal</label>
+                            <input type="date" id="tanggalRingkas">
+                        </div>
+                        <div class="filter-group hidden" id="customPeriodRingkas">
+                            <label for="tanggalMulaiRingkas">Tanggal Mulai</label>
+                            <input type="date" id="tanggalMulaiRingkas">
+                        </div>
+                        <div class="filter-group hidden" id="customPeriodRingkas2">
+                            <label for="tanggalSelesaiRingkas">Tanggal Selesai</label>
+                            <input type="date" id="tanggalSelesaiRingkas">
+                        </div>
+                    </div>
+                    <div class="financial-summary" id="ringkasSummary">
+                        <!-- Data akan diisi secara dinamis -->
+                    </div>
+                    <div class="table-container scrollable-table">
+                        <table id="ringkasTable">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Nama Karyawan</th>
+                                    <th>Omzet</th>
+                                    <th>Laba Kotor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data akan diisi secara dinamis -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="simpanRingkasLaporanSpreadsheet">
+                            <i class="fas fa-save"></i> Simpan ke Spreadsheet
+                        </button>
+                        <button class="btn btn-secondary" id="simpanRingkasLaporanFirestore">
+                            <i class="fas fa-cloud"></i> Simpan ke Firestore
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Laporan Keuangan Lengkap -->
+                <div class="content-section hidden" id="laporanLengkap">
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="karyawanLengkap">Karyawan</label>
+                            <select id="karyawanLengkap">
+                                <option value="semua">Semua Karyawan</option>
+                                <!-- Opsi akan diisi secara dinamis -->
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="periodeLengkap">Periode</label>
+                            <select id="periodeLengkap">
+                                <option value="harian">Harian</option>
+                                <option value="mingguan">Mingguan</option>
+                                <option value="bulanan">Bulanan</option>
+                                <option value="tahunan">Tahunan</option>
+                                <option value="custom">Custom Periode</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" id="defaultDateLengkap">
+                            <label for="tanggalLengkap">Tanggal</label>
+                            <input type="date" id="tanggalLengkap">
+                        </div>
+                        <div class="filter-group hidden" id="customPeriodLengkap">
+                            <label for="tanggalMulaiLengkap">Tanggal Mulai</label>
+                            <input type="date" id="tanggalMulaiLengkap">
+                        </div>
+                        <div class="filter-group hidden" id="customPeriodLengkap2">
+                            <label for="tanggalSelesaiLengkap">Tanggal Selesai</label>
+                            <input type="date" id="tanggalSelesaiLengkap">
+                        </div>
+                    </div>
+                    
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-chart-type="omzet">Omzet</button>
+                        <button class="chart-btn" data-chart-type="laba-kotor">Laba Kotor</button>
+                        <button class="chart-btn" data-chart-type="total-terjual">Total Terjual</button>
+                    </div>
+                    
+                    <div class="chart-container" id="laporanLengkapChartContainer">
+                        <button class="chart-fullscreen-btn" data-chart="laporanLengkapChart">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <canvas id="laporanLengkapChart"></canvas>
+                    </div>
+                    
+                    <div class="table-container scrollable-table">
+                        <table id="laporanLengkapTable">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Nama</th>
+                                    <th>Omzet</th>
+                                    <th>Laba Kotor</th>
+                                    <th>Total Terjual</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data akan diisi secara dinamis -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="simpanLengkapSpreadsheet">
+                            <i class="fas fa-save"></i> Simpan ke Spreadsheet
+                        </button>
+                        <button class="btn btn-secondary" id="simpanLengkapFirestore">
+                            <i class="fas fa-cloud"></i> Simpan ke Firestore
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Arus Kas -->
+                <div class="content-section hidden" id="arusKas">
+                    <div class="financial-summary" id="arusKasSummary">
+                        <!-- Data akan diisi secara dinamis -->
+                    </div>
+                    
+                    <div class="chart-container" id="arusKasChartContainer">
+                        <button class="chart-fullscreen-btn" data-chart="arusKasChart">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <canvas id="arusKasChart"></canvas>
+                    </div>
+                    
+                    <div class="manual-inputs">
+                        <div class="manual-input-card">
+                            <h3>Input Manual Kas Saat Ini</h3>
+                            <div class="input-with-btn">
+                                <div class="currency-input">
+                                    <input type="text" id="inputKasManual" placeholder="0">
+                                </div>
+                                <button class="btn btn-secondary" id="updateKas">
+                                    <i class="fas fa-edit"></i> Update
+                                </button>
+                            </div>
+                        </div>
+                        <div class="manual-input-card">
+                            <h3>Input Manual Gaji Karyawan</h3>
+                            <div class="input-with-btn">
+                                <div class="currency-input">
+                                    <input type="text" id="inputGajiKaryawan" placeholder="0">
+                                </div>
+                                <button class="btn btn-secondary" id="bayarGaji">
+                                    <i class="fas fa-money-bill"></i> Bayar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="manual-input-card">
+                            <h3>Input Manual Pengeluaran Lainnya</h3>
+                            <div class="input-with-btn">
+                                <div class="currency-input">
+                                    <input type="text" id="inputPengeluaranLain" placeholder="0">
+                                </div>
+                                <button class="btn btn-secondary" id="tambahPengeluaran">
+                                    <i class="fas fa-plus"></i> Tambah
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="actions">
+                        <button class="btn btn-primary" id="simpanArusKasSpreadsheet">
+                            <i class="fas fa-save"></i> Simpan ke Spreadsheet
+                        </button>
+                        <button class="btn btn-secondary" id="simpanArusKasFirestore">
+                            <i class="fas fa-cloud"></i> Simpan ke Firestore
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Menu Popup -->
+    <div class="popup" id="menuPopup">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h3 class="popup-title">Menu</h3>
+                <button class="popup-close" id="closeMenu"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="popup-body">
+                <ul class="menu-list">
+                    <li class="menu-item" id="laporanPenjualan">
+                        <span><i class="fas fa-chart-line"></i> Laporan Penjualan</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </li>
+                    <ul class="submenu" id="submenuPenjualan">
+                        <li class="submenu-item" data-content="inputPenjualan" data-tab="ringkas">Input Penjualan (hanya karyawan)</li>
+                        <li class="submenu-item" data-content="proyeksiPenjualan">Proyeksi (hanya admin)</li>
+                    </ul>
+                    
+                    <li class="menu-item" id="laporanKeuangan">
+                        <span><i class="fas fa-file-invoice-dollar"></i> Laporan Keuangan (hanya admin)</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </li>
+                    <ul class="submenu" id="submenuKeuangan">
+                        <li class="submenu-item" data-content="laporanRingkas">Laporan Ringkas</li>
+                        <li class="submenu-item" data-content="laporanLengkap">Laporan Lengkap</li>
+                        <li class="submenu-item" data-content="arusKas">Arus Kas</li>
+                    </ul>
+                    
+                    <li class="menu-item" id="switchMode">
+                        <span><i class="fas fa-moon"></i> Switch Mode</span>
+                    </li>
+                    <li class="menu-item" id="logout">
+                        <span><i class="fas fa-sign-out-alt"></i> Logout</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Popup -->
+    <div class="popup" id="profilePopup">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h3 class="popup-title">Profile</h3>
+                <button class="popup-close" id="closeProfile"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="popup-body">
+                <div class="form-group">
+                    <label for="profilePhoto">Foto Profil</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 60px; height: 60px; border-radius: 50%; background-color: #e0e0e0; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-user" style="font-size: 1.5rem; color: #999;"></i>
+                        </div>
+                        <button class="btn btn-secondary" id="gantiFoto">Ganti Foto</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="profileName">Nama</label>
+                    <input type="text" id="profileName" value="Admin Fupa Snack">
+                </div>
+                <div class="form-group">
+                    <label for="profileAddress">Alamat</label>
+                    <textarea id="profileAddress" rows="3" style="width: 100%; padding: 10px 15px; border: 1px solid var(--border-color); border-radius: 5px; font-family: 'Inter', sans-serif;">Jl. Contoh No. 123, Jakarta</textarea>
+                </div>
+                <div class="actions">
+                    <button class="btn btn-primary" id="simpanProfile">Simpan Perubahan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Popup -->
+    <div class="popup login-popup" id="loginPopup">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h3 class="popup-title">Login Fupa Snack</h3>
+            </div>
+            <div class="popup-body">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" placeholder="email@fupa.id">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Password">
+                </div>
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="rememberLogin">
+                    <label for="rememberLogin">Ingat saya</label>
+                </div>
+                <div class="actions">
+                    <button class="btn btn-primary" id="loginButton">Masuk</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="integration.js"></script>
+    <script src="calculating.js"></script>
+    <script src="chart.js"></script>
+    <script>
+        // Main Application Logic
+        class FupaSnackApp {
+            constructor() {
+                this.currentUser = null;
+                this.userRole = null;
+                this.salesData = [];
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.setupUIComponents();
+                this.checkAuthentication();
+            }
+
+            setupEventListeners() {
+                // Authentication events
+                document.getElementById('loginButton').addEventListener('click', () => this.handleLogin());
+                document.getElementById('logout').addEventListener('click', () => this.handleLogout());
+
+                // Menu and navigation
+                document.getElementById('menuBtn').addEventListener('click', () => this.toggleMenu());
+                document.getElementById('profileBtn').addEventListener('click', () => this.toggleProfile());
+                document.getElementById('closeMenu').addEventListener('click', () => this.closeMenu());
+                document.getElementById('closeProfile').addEventListener('click', () => this.closeProfile());
+
+                // Submenu items
+                document.querySelectorAll('.submenu-item').forEach(item => {
+                    item.addEventListener('click', (e) => this.handleSubmenuClick(e));
+                });
+
+                // Theme switch
+                document.getElementById('switchMode').addEventListener('click', () => this.toggleDarkMode());
+
+                // Sales operations
+                document.getElementById('tambahEntriDetail').addEventListener('click', () => this.tambahEntriDetail());
+                document.getElementById('simpanDetailFirestore').addEventListener('click', () => this.simpanDetailFirestore());
+
+                // Financial operations
+                document.getElementById('updateKas').addEventListener('click', () => this.updateKas());
+                document.getElementById('bayarGaji').addEventListener('click', () => this.bayarGaji());
+                document.getElementById('tambahPengeluaran').addEventListener('click', () => this.tambahPengeluaran());
+
+                // Filter changes
+                this.setupFilterListeners();
+
+                // Integration system events
+                this.setupIntegrationEvents();
+            }
+
+            setupIntegrationEvents() {
+                // Listen for real-time data updates
+                if (window.integrationSystem) {
+                    window.integrationSystem.setupSalesListener((sales) => {
+                        this.salesData = sales;
+                        this.updateSalesTables();
+                        this.updateCharts();
+                    });
+                }
+
+                // Listen for calculation events
+                document.addEventListener('financialSummaryCalculated', (event) => {
+                    this.updateFinancialSummary(event.detail);
+                });
+
+                document.addEventListener('cashFlowCalculated', (event) => {
+                    this.updateCashFlow(event.detail);
+                });
+
+                document.addEventListener('projectionsUpdated', (event) => {
+                    this.updateProjections(event.detail);
+                });
+            }
+
+            async checkAuthentication() {
+                // Check if user is already logged in
+                if (window.integrationSystem && window.integrationSystem.currentUser) {
+                    this.onLoginSuccess();
+                } else {
+                    this.showLoginPopup();
+                }
+            }
+
+            async handleLogin() {
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+
+                if (!email || !password) {
+                    alert('Email dan password harus diisi');
+                    return;
+                }
+
+                const result = await window.integrationSystem.login(email, password);
+                if (result.success) {
+                    this.onLoginSuccess();
+                } else {
+                    alert('Login gagal: ' + result.error);
+                }
+            }
+
+            async handleLogout() {
+                if (confirm('Apakah Anda yakin ingin logout?')) {
+                    const result = await window.integrationSystem.logout();
+                    if (result.success) {
+                        this.showLoginPopup();
+                    }
+                }
+            }
+
+            onLoginSuccess() {
+                this.currentUser = window.integrationSystem.currentUser;
+                this.userRole = window.integrationSystem.userRole;
+                this.hideLoginPopup();
+                this.updateUIBasedOnRole();
+                this.loadInitialData();
+            }
+
+            updateUIBasedOnRole() {
+                const adminOnlyElements = document.querySelectorAll('[data-admin-only]');
+                const employeeOnlyElements = document.querySelectorAll('[data-employee-only]');
+
+                if (this.userRole === 'admin') {
+                    adminOnlyElements.forEach(el => el.style.display = 'block');
+                    employeeOnlyElements.forEach(el => el.style.display = 'block');
+                } else {
+                    adminOnlyElements.forEach(el => el.style.display = 'none');
+                    employeeOnlyElements.forEach(el => el.style.display = 'block');
+                    
+                    // Hide financial menus for employees
+                    document.getElementById('laporanKeuangan').style.display = 'none';
+                }
+            }
+
+            async loadInitialData() {
+                // Load sales data
+                const salesResult = await window.integrationSystem.getSales();
+                if (salesResult.success) {
+                    this.salesData = salesResult.data;
+                    this.updateSalesTables();
+                    this.updateCharts();
+                }
+
+                // Trigger initial calculations
+                if (window.calculationSystem) {
+                    window.calculationSystem.recalculateAll();
+                }
+            }
+
+            // UI Management Methods
+            toggleMenu() {
+                document.getElementById('menuPopup').classList.toggle('active');
+            }
+
+            toggleProfile() {
+                document.getElementById('profilePopup').classList.toggle('active');
+            }
+
+            closeMenu() {
+                document.getElementById('menuPopup').classList.remove('active');
+            }
+
+            closeProfile() {
+                document.getElementById('profilePopup').classList.remove('active');
+            }
+
+            showLoginPopup() {
+                document.getElementById('loginPopup').classList.add('active');
+            }
+
+            hideLoginPopup() {
+                document.getElementById('loginPopup').classList.remove('active');
+            }
+
+            toggleDarkMode() {
+                document.body.classList.toggle('dark-mode');
+                this.updateChartThemes();
+                
+                if (document.body.classList.contains('dark-mode')) {
+                    document.getElementById('switchMode').innerHTML = '<span><i class="fas fa-sun"></i> Mode Terang</span>';
+                } else {
+                    document.getElementById('switchMode').innerHTML = '<span><i class="fas fa-moon"></i> Mode Gelap</span>';
+                }
+            }
+
+            handleSubmenuClick(event) {
+                const contentId = event.currentTarget.getAttribute('data-content');
+                const tab = event.currentTarget.getAttribute('data-tab');
+                
+                this.closeMenu();
+                this.showContentSection(contentId, tab);
+            }
+
+            showContentSection(contentId, tab = null) {
+                // Hide all content sections
+                document.querySelectorAll('.content-section').forEach(section => {
+                    section.classList.add('hidden');
+                });
+
+                // Update page title
+                document.getElementById('pageTitle').textContent = this.getPageTitle(contentId);
+
+                // Update tab navigation if needed
+                this.updateTabNavigation(contentId, tab);
+
+                // Show the selected content
+                const contentSection = document.getElementById(contentId);
+                if (contentSection) {
+                    contentSection.classList.remove('hidden');
+                    
+                    // Initialize content-specific features
+                    this.initializeContentFeatures(contentId);
+                }
+            }
+
+            getPageTitle(contentId) {
+                const titles = {
+                    'inputPenjualan': 'Input Penjualan',
+                    'proyeksiPenjualan': 'Proyeksi Penjualan',
+                    'laporanRingkas': 'Laporan Keuangan Ringkas',
+                    'laporanLengkap': 'Laporan Keuangan Lengkap',
+                    'arusKas': 'Arus Kas'
+                };
+                return titles[contentId] || 'Dashboard';
+            }
+
+            updateTabNavigation(contentId, defaultTab) {
+                const tabNavigation = document.getElementById('tabNavigation');
+                tabNavigation.innerHTML = '';
+
+                if (contentId === 'inputPenjualan') {
+                    const tabs = ['ringkas', 'detail', 'supplier'];
+                    tabs.forEach(tab => {
+                        const tabElement = document.createElement('div');
+                        tabElement.className = `tab ${tab === (defaultTab || 'ringkas') ? 'active' : ''}`;
+                        tabElement.textContent = this.getTabLabel(tab);
+                        tabElement.setAttribute('data-tab', tab);
+                        
+                        tabElement.addEventListener('click', () => {
+                            this.switchInputTab(tab);
+                        });
+                        
+                        tabNavigation.appendChild(tabElement);
+                    });
+                    tabNavigation.style.display = 'flex';
+                    
+                    // Show default tab content
+                    this.switchInputTab(defaultTab || 'ringkas');
+                } else {
+                    tabNavigation.style.display = 'none';
+                }
+            }
+
+            switchInputTab(tab) {
+                // Update active tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+
+                // Show corresponding content
+                document.querySelectorAll('#inputRingkas, #inputDetail, #inputSupplier').forEach(section => {
+                    section.classList.add('hidden');
+                });
+                document.getElementById(`input${this.capitalizeFirstLetter(tab)}`).classList.remove('hidden');
+            }
+
+            getTabLabel(tab) {
+                const labels = {
+                    'ringkas': 'Ringkas',
+                    'detail': 'Detail',
+                    'supplier': 'Uang Supplier'
+                };
+                return labels[tab] || tab;
+            }
+
+            capitalizeFirstLetter(string) {
+                return string.charAt(0).toUpperCase() + string.slice(1);
+            }
+
+            initializeContentFeatures(contentId) {
+                switch (contentId) {
+                    case 'proyeksiPenjualan':
+                        this.initializeProyeksiChart();
+                        break;
+                    case 'laporanLengkap':
+                        this.initializeLaporanLengkapChart();
+                        break;
+                    case 'arusKas':
+                        this.initializeArusKasChart();
+                        break;
+                }
+            }
+
+            // Data Management Methods
+            updateSalesTables() {
+                this.updateRingkasTable();
+                this.updateDetailTable();
+                this.updateSupplierTable();
+            }
+
+            updateRingkasTable() {
+                const tbody = document.querySelector('#ringkasTable tbody');
+                tbody.innerHTML = '';
+
+                this.salesData.forEach(sale => {
+                    const row = this.createSalesTableRow(sale, 'ringkas');
+                    tbody.appendChild(row);
+                });
+            }
+
+            updateDetailTable() {
+                const tbody = document.querySelector('#detailTable tbody');
+                tbody.innerHTML = '';
+
+                this.salesData.forEach(sale => {
+                    const row = this.createSalesTableRow(sale, 'detail');
+                    tbody.appendChild(row);
+                });
+            }
+
+            updateSupplierTable() {
+                const tbody = document.querySelector('#supplierTable tbody');
+                tbody.innerHTML = '';
+
+                // Group by supplier
+                const supplierData = this.groupSalesBySupplier();
+                Object.keys(supplierData).forEach(supplierName => {
+                    const total = window.calculationSystem.calculateTotalUangSupplier(supplierData[supplierName]);
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${new Date().toLocaleDateString('id-ID')}</td>
+                        <td>${supplierName}</td>
+                        <td class="currency">${window.calculationSystem.formatCurrency(total)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            groupSalesBySupplier() {
+                const groups = {};
+                this.salesData.forEach(sale => {
+                    const supplierName = sale.nama || sale.namaSupplier;
+                    if (!groups[supplierName]) groups[supplierName] = [];
+                    groups[supplierName].push(sale);
+                });
+                return groups;
+            }
+
+            createSalesTableRow(sale, tableType) {
+                const row = document.createElement('tr');
+                
+                const deleteBtn = `<button class="btn btn-danger" onclick="app.deleteSale('${sale.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>`;
+
+                const baseCells = `
+                    <td>${deleteBtn}</td>
+                    <td>${new Date(sale.tanggal).toLocaleDateString('id-ID')}</td>
+                    <td>${sale.nama}</td>
+                    <td>${sale.barang}</td>
+                    <td><input type="number" value="${sale.stok}" onchange="app.updateSaleField('${sale.id}', 'stok', this.value)"></td>
+                    <td><input type="number" value="${sale.sisa}" onchange="app.updateSaleField('${sale.id}', 'sisa', this.value)"></td>
+                    <td>${sale.terjual}</td>
+                `;
+
+                if (tableType === 'detail') {
+                    row.innerHTML = baseCells + `
+                        <td><input type="text" class="currency-input-field" value="${sale.hargaBeli}" onchange="app.updateSaleField('${sale.id}', 'hargaBeli', this.value)"></td>
+                        <td><input type="text" class="currency-input-field" value="${sale.hargaJual}" onchange="app.updateSaleField('${sale.id}', 'hargaJual', this.value)"></td>
+                        <td class="currency">${window.calculationSystem.formatCurrency(sale.uangSupplier)}</td>
+                        <td class="currency">${window.calculationSystem.formatCurrency(sale.labaKotor)}</td>
+                    `;
+                } else {
+                    row.innerHTML = baseCells;
+                }
+
+                return row;
+            }
+
+            // Chart Management Methods
+            updateCharts() {
+                if (window.chartSystem) {
+                    window.chartSystem.initializeProyeksiChart(this.salesData);
+                    window.chartSystem.initializeLaporanLengkapChart(this.salesData);
+                    window.chartSystem.initializeArusKasChart(this.salesData);
+                }
+            }
+
+            updateChartThemes() {
+                if (window.chartSystem) {
+                    window.chartSystem.updateChartsForTheme();
+                }
+            }
+
+            initializeProyeksiChart() {
+                if (window.chartSystem && this.salesData.length > 0) {
+                    window.chartSystem.initializeProyeksiChart(this.salesData);
+                }
+            }
+
+            initializeLaporanLengkapChart() {
+                if (window.chartSystem && this.salesData.length > 0) {
+                    window.chartSystem.initializeLaporanLengkapChart(this.salesData);
+                }
+            }
+
+            initializeArusKasChart() {
+                if (window.chartSystem) {
+                    window.chartSystem.initializeArusKasChart(this.salesData);
+                }
+            }
+
+            // Business Logic Methods
+            async tambahEntriDetail() {
+                const newSale = {
+                    tanggal: new Date().toISOString().split('T')[0],
+                    nama: '',
+                    barang: '',
+                    stok: 0,
+                    sisa: 0,
+                    terjual: 0,
+                    hargaBeli: 0,
+                    hargaJual: 0,
+                    uangSupplier: 0,
+                    labaKotor: 0,
+                    omzet: 0
+                };
+
+                const result = await window.integrationSystem.addSale(newSale);
+                if (result.success) {
+                    this.loadInitialData(); // Reload data
+                } else {
+                    alert('Gagal menambah entri: ' + result.error);
+                }
+            }
+
+            async deleteSale(saleId) {
+                if (confirm('Apakah Anda yakin ingin menghapus entri ini?')) {
+                    const result = await window.integrationSystem.deleteSale(saleId);
+                    if (!result.success) {
+                        alert('Gagal menghapus: ' + result.error);
+                    }
+                }
+            }
+
+            async updateSaleField(saleId, field, value) {
+                const updateData = { [field]: value };
+                
+                // Recalculate derived fields if needed
+                if (field === 'stok' || field === 'sisa') {
+                    const sale = this.salesData.find(s => s.id === saleId);
+                    if (sale) {
+                        const stok = field === 'stok' ? parseInt(value) : sale.stok;
+                        const sisa = field === 'sisa' ? parseInt(value) : sale.sisa;
+                        const terjual = window.calculationSystem.calculateTerjual(stok, sisa);
+                        
+                        updateData.terjual = terjual;
+                        updateData.uangSupplier = window.calculationSystem.calculateUangSupplier(
+                            terjual, sale.hargaBeli
+                        );
+                        updateData.labaKotor = window.calculationSystem.calculateKeuntungan(
+                            terjual, sale.hargaJual, sale.hargaBeli
+                        );
+                        updateData.omzet = window.calculationSystem.calculateOmzet(terjual, sale.hargaJual);
+                    }
+                }
+
+                const result = await window.integrationSystem.updateSale(saleId, updateData);
+                if (!result.success) {
+                    alert('Gagal memperbarui: ' + result.error);
+                }
+            }
+
+            async simpanDetailFirestore() {
+                // Implementation for saving to Firestore
+                alert('Data berhasil disimpan ke Firestore');
+            }
+
+            updateKas() {
+                const jumlah = document.getElementById('inputKasManual').value;
+                alert(`Kas diperbarui: ${jumlah}`);
+                // Implementation for updating cash
+            }
+
+            bayarGaji() {
+                const jumlah = document.getElementById('inputGajiKaryawan').value;
+                alert(`Gaji dibayar: ${jumlah}`);
+                // Implementation for salary payment
+            }
+
+            tambahPengeluaran() {
+                const jumlah = document.getElementById('inputPengeluaranLain').value;
+                alert(`Pengeluaran ditambah: ${jumlah}`);
+                // Implementation for adding expense
+            }
+
+            setupFilterListeners() {
+                // Setup filter change listeners
+                const filters = [
+                    'periodeProyeksi', 'tanggalProyeksi', 'supplierFilter', 'dateFilter',
+                    'periodeRingkas', 'tanggalRingkas', 'karyawanLengkap', 'periodeLengkap'
+                ];
+
+                filters.forEach(filterId => {
+                    const element = document.getElementById(filterId);
+                    if (element) {
+                        element.addEventListener('change', () => this.handleFilterChange());
+                    }
+                });
+            }
+
+            handleFilterChange() {
+                this.updateCharts();
+                this.updateSalesTables();
+            }
+
+            updateFinancialSummary(data) {
+                const summaryContainer = document.getElementById('ringkasSummary');
+                if (summaryContainer) {
+                    summaryContainer.innerHTML = `
+                        <div class="financial-card">
+                            <h3>Omzet</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(data.totalOmzet)}</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Laba Kotor</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(data.totalLabaKotor)}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            updateCashFlow(data) {
+                const summaryContainer = document.getElementById('arusKasSummary');
+                if (summaryContainer) {
+                    summaryContainer.innerHTML = `
+                        <div class="financial-card">
+                            <h3>Omzet</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(data.totalOmzet)}</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Laba Kotor</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(data.totalLabaKotor)}</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Laba Bersih</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(data.labaBersih)}</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Rugi</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(0)}</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Pengeluaran</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(data.totalPengeluaran)}</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Kas Saat Ini</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(data.kasSaatIni)}</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Kas Terbaru</h3>
+                            <div class="amount">${window.calculationSystem.formatCurrency(data.kasTerbaru)}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            updateProjections(data) {
+                // Update projections display
+                console.log('Projections updated:', data);
+            }
+        }
+
+        // Initialize the application
+        const app = new FupaSnackApp();
+        window.app = app;
+
+        // Setup currency formatting
+        document.addEventListener('DOMContentLoaded', function() {
+            // Format currency inputs
+            const currencyInputs = document.querySelectorAll('.currency-input-field');
+            currencyInputs.forEach(input => {
+                input.addEventListener('blur', function() {
+                    const value = this.value.replace(/\D/g, '');
+                    if (value) {
+                        this.value = 'Rp ' + new Intl.NumberFormat('id-ID').format(value);
+                    }
+                });
+                
+                input.addEventListener('focus', function() {
+                    this.value = this.value.replace(/[^\d]/g, '');
+                });
+            });
+
+            // Setup chart controls
+            const chartControls = document.querySelectorAll('.chart-btn');
+            chartControls.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const chartType = this.getAttribute('data-chart-type');
+                    const chartContainer = this.closest('.content-section');
+                    
+                    chartControls.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    if (chartContainer.id === 'proyeksiPenjualan') {
+                        window.chartSystem.updateProyeksiChart(chartType);
+                    } else if (chartContainer.id === 'laporanLengkap') {
+                        window.chartSystem.updateLaporanLengkapChart(chartType);
+                    }
+                });
+            });
+
+            // Setup fullscreen charts
+            const fullscreenBtns = document.querySelectorAll('.chart-fullscreen-btn');
+            fullscreenBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const chartId = this.getAttribute('data-chart');
+                    const container = this.closest('.chart-container');
+                    
+                    container.classList.toggle('fullscreen');
+                    
+                    const icon = this.querySelector('i');
+                    if (container.classList.contains('fullscreen')) {
+                        icon.classList.remove('fa-expand');
+                        icon.classList.add('fa-compress');
+                    } else {
+                        icon.classList.remove('fa-compress');
+                        icon.classList.add('fa-expand');
+                    }
+                    
+                    // Update chart size
+                    const chart = window.chartSystem.charts[chartId];
+                    if (chart) {
+                        chart.resize();
+                    }
+                });
+            });
+
+            // Setup custom period handlers
+            const periodSelects = ['periodeProyeksi', 'periodeRingkas', 'periodeLengkap'];
+            periodSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.addEventListener('change', function() {
+                        const isCustom = this.value === 'custom';
+                        const defaultDate = document.getElementById(selectId.replace('periode', 'defaultDate'));
+                        const customPeriod1 = document.getElementById(selectId.replace('periode', 'customPeriod'));
+                        const customPeriod2 = document.getElementById(selectId.replace('periode', 'customPeriod2'));
+                        
+                        if (defaultDate) defaultDate.classList.toggle('hidden', isCustom);
+                        if (customPeriod1) customPeriod1.classList.toggle('hidden', !isCustom);
+                        if (customPeriod2) customPeriod2.classList.toggle('hidden', !isCustom);
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
