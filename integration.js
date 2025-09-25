@@ -1,253 +1,282 @@
-// Firebase Configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyApYdiUlLMb9ihBkLnCjDpLJHqYFRFS3Fw",
-  authDomain: "fupa-snack.firebaseapp.com",
-  projectId: "fupa-snack",
-  storageBucket: "fupa-snack.firebasestorage.app",
-  messagingSenderId: "972524876738",
-  appId: "1:972524876738:web:dd0d57dd8bf2d8a8dd9c5b"
-};
+// integration.js - Sistem Integrasi Lengkap
 
-// Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-
-// Cloudinary Configuration
-const cloudinaryConfig = {
-  cloudName: 'da7idhh4f',
-  uploadPreset: 'FupaSnack'
-};
-
-// Google Spreadsheet URL
-const SPREADSHEET_URL = 'https://script.google.com/macros/s/AKfycbyhQQ1q7XOq_z2wkXZqFvug5BZOu-ApPs3bXiZSrMlCucHsRQu7CEfMdn1T2K4bI9wQ/exec';
-
-class IntegrationManager {
-  constructor() {
-    this.currentUser = null;
-    this.userRole = null;
-    this.init();
-  }
-
-  async init() {
-    await this.initializeFirebase();
-    this.setupAuthStateListener();
-    this.initializeCloudinary();
-  }
-
-  // Firebase Initialization
-  async initializeFirebase() {
-    try {
-      // Enable offline persistence
-      await db.enablePersistence();
-      console.log('Firebase persistence enabled');
-    } catch (err) {
-      if (err.code === 'failed-precondition') {
-        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-      } else if (err.code === 'unimplemented') {
-        console.warn('The current browser doesn\'t support persistence');
-      }
+class FirebaseIntegration {
+    constructor() {
+        this.firebaseConfig = {
+            apiKey: "AIzaSyApYdiUlLMb9ihBkLnCjDpLJHqYFRFS3Fw",
+            authDomain: "fupa-snack.firebaseapp.com",
+            projectId: "fupa-snack",
+            storageBucket: "fupa-snack.firebasestorage.app",
+            messagingSenderId: "972524876738",
+            appId: "1:972524876738:web:dd0d57dd8bf2d8a8dd9c5b"
+        };
+        
+        this.cloudinaryConfig = {
+            cloudName: 'da7idhh4f',
+            uploadPreset: 'FupaSnack',
+            apiKey: 'your_cloudinary_api_key_here'
+        };
+        
+        this.spreadsheetUrl = 'https://script.google.com/macros/s/AKfycbyhQQ1q7XOq_z2wkXZqFvug5BZOu-ApPs3bXiZSrMlCucHsRQu7CEfMdn1T2K4bI9wQ/exec';
+        
+        this.init();
     }
-  }
-
-  // Auth State Listener
-  setupAuthStateListener() {
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        this.currentUser = user;
-        await this.getUserRole(user);
-        this.onUserSignedIn(user);
-      } else {
+    
+    init() {
+        // Inisialisasi Firebase
+        firebase.initializeApp(this.firebaseConfig);
+        this.auth = firebase.auth();
+        this.db = firebase.firestore();
         this.currentUser = null;
         this.userRole = null;
-        this.onUserSignedOut();
-      }
-    });
-  }
-
-  // Get User Role from Custom Claims
-  async getUserRole(user) {
-    try {
-      const idTokenResult = await user.getIdTokenResult();
-      this.userRole = idTokenResult.claims.admin ? 'admin' : 'employee';
-      console.log(`User role: ${this.userRole}`);
-    } catch (error) {
-      console.error('Error getting user role:', error);
-      this.userRole = 'employee';
-    }
-  }
-
-  // Cloudinary Initialization
-  initializeCloudinary() {
-    // Cloudinary will be loaded dynamically when needed
-  }
-
-  // Login Function
-  async login(email, password) {
-    try {
-      const userCredential = await auth.signInWithEmailAndPassword(email, password);
-      return { success: true, user: userCredential.user };
-    } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Logout Function
-  async logout() {
-    try {
-      await auth.signOut();
-      return { success: true };
-    } catch (error) {
-      console.error('Logout error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Firestore Data Operations
-  async addSale(saleData) {
-    try {
-      const saleWithMetadata = {
-        ...saleData,
-        ownerId: this.currentUser.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      const docRef = await db.collection('sales').add(saleWithMetadata);
-      return { success: true, id: docRef.id };
-    } catch (error) {
-      console.error('Error adding sale:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async updateSale(saleId, saleData) {
-    try {
-      const saleWithMetadata = {
-        ...saleData,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      await db.collection('sales').doc(saleId).update(saleWithMetadata);
-      return { success: true };
-    } catch (error) {
-      console.error('Error updating sale:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async deleteSale(saleId) {
-    try {
-      await db.collection('sales').doc(saleId).delete();
-      return { success: true };
-    } catch (error) {
-      console.error('Error deleting sale:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Real-time Listeners
-  setupSalesListener(callback) {
-    let query = db.collection('sales');
-    
-    // Jika user adalah employee, hanya tampilkan data miliknya
-    if (this.userRole === 'employee') {
-      query = query.where('ownerId', '==', this.currentUser.uid);
+        
+        // Setup auth state listener
+        this.setupAuthListener();
     }
     
-    return query.orderBy('createdAt', 'desc')
-      .onSnapshot((snapshot) => {
-        const sales = [];
-        snapshot.forEach((doc) => {
-          sales.push({ id: doc.id, ...doc.data() });
+    setupAuthListener() {
+        this.auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                this.currentUser = user;
+                await this.getUserRole();
+                this.onLoginSuccess();
+            } else {
+                this.currentUser = null;
+                this.userRole = null;
+                this.showLoginPopup();
+            }
         });
-        callback(sales);
-      }, (error) => {
-        console.error('Sales listener error:', error);
-      });
-  }
-
-  // Cloudinary Upload
-  async uploadToCloudinary(file) {
-    return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', cloudinaryConfig.uploadPreset);
-      formData.append('cloud_name', cloudinaryConfig.cloudName);
-
-      fetch(`https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/upload`, {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.secure_url) {
-          resolve({ success: true, url: data.secure_url });
-        } else {
-          reject({ success: false, error: 'Upload failed' });
-        }
-      })
-      .catch(error => {
-        reject({ success: false, error: error.message });
-      });
-    });
-  }
-
-  // Google Spreadsheet Integration
-  async saveToSpreadsheet(data, sheetName) {
-    try {
-      const payload = {
-        action: 'append',
-        sheetName: sheetName,
-        data: data,
-        timestamp: new Date().toISOString(),
-        user: this.currentUser.email
-      };
-
-      const response = await fetch(SPREADSHEET_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Error saving to spreadsheet:', error);
-      return { success: false, error: error.message };
     }
-  }
-
-  // Utility Functions
-  onUserSignedIn(user) {
-    // Update UI untuk user yang login
-    document.dispatchEvent(new CustomEvent('userSignedIn', { 
-      detail: { user, role: this.userRole } 
-    }));
-  }
-
-  onUserSignedOut() {
-    // Update UI untuk logout
-    document.dispatchEvent(new CustomEvent('userSignedOut'));
-  }
-
-  // Check if user is admin
-  isAdmin() {
-    return this.userRole === 'admin';
-  }
-
-  // Get current user ID
-  getCurrentUserId() {
-    return this.currentUser ? this.currentUser.uid : null;
-  }
+    
+    async getUserRole() {
+        try {
+            const idTokenResult = await this.currentUser.getIdTokenResult();
+            this.userRole = idTokenResult.claims.admin ? 'admin' : 'karyawan';
+            return this.userRole;
+        } catch (error) {
+            console.error('Error getting user role:', error);
+            this.userRole = 'karyawan';
+            return this.userRole;
+        }
+    }
+    
+    async login(email, password) {
+        try {
+            const userCredential = await this.auth.signInWithEmailAndPassword(email, password);
+            return { success: true, user: userCredential.user };
+        } catch (error) {
+            console.error('Login error:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    async logout() {
+        try {
+            await this.auth.signOut();
+            return { success: true };
+        } catch (error) {
+            console.error('Logout error:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    // === FIRESTORE OPERATIONS ===
+    
+    async addSale(saleData) {
+        try {
+            const saleWithMetadata = {
+                ...saleData,
+                ownerId: this.currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            const docRef = await this.db.collection('sales').add(saleWithMetadata);
+            return { success: true, id: docRef.id };
+        } catch (error) {
+            console.error('Error adding sale:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    async updateSale(saleId, saleData) {
+        try {
+            await this.db.collection('sales').doc(saleId).update({
+                ...saleData,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            return { success: true };
+        } catch (error) {
+            console.error('Error updating sale:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    async deleteSale(saleId) {
+        try {
+            await this.db.collection('sales').doc(saleId).delete();
+            return { success: true };
+        } catch (error) {
+            console.error('Error deleting sale:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    async getSales(filter = {}) {
+        try {
+            let query = this.db.collection('sales');
+            
+            // Filter berdasarkan ownerId untuk karyawan
+            if (this.userRole === 'karyawan') {
+                query = query.where('ownerId', '==', this.currentUser.uid);
+            }
+            
+            // Filter tanggal jika ada
+            if (filter.startDate && filter.endDate) {
+                query = query.where('date', '>=', filter.startDate)
+                            .where('date', '<=', filter.endDate);
+            }
+            
+            // Filter karyawan jika ada (hanya admin)
+            if (filter.employeeId && this.userRole === 'admin') {
+                query = query.where('ownerId', '==', filter.employeeId);
+            }
+            
+            const snapshot = await query.orderBy('date', 'desc').get();
+            const sales = [];
+            snapshot.forEach(doc => {
+                sales.push({ id: doc.id, ...doc.data() });
+            });
+            
+            return { success: true, data: sales };
+        } catch (error) {
+            console.error('Error getting sales:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    // Realtime listener untuk sales
+    setupSalesListener(callback) {
+        let query = this.db.collection('sales');
+        
+        if (this.userRole === 'karyawan') {
+            query = query.where('ownerId', '==', this.currentUser.uid);
+        }
+        
+        return query.orderBy('date', 'desc').onSnapshot(snapshot => {
+            const sales = [];
+            snapshot.forEach(doc => {
+                sales.push({ id: doc.id, ...doc.data() });
+            });
+            callback(sales);
+        });
+    }
+    
+    // === CLOUDINARY UPLOAD ===
+    
+    async uploadToCloudinary(file) {
+        return new Promise((resolve, reject) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', this.cloudinaryConfig.uploadPreset);
+            formData.append('cloud_name', this.cloudinaryConfig.cloudName);
+            
+            fetch(`https://api.cloudinary.com/v1_1/${this.cloudinaryConfig.cloudName}/image/upload`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.secure_url) {
+                    resolve({ success: true, url: data.secure_url });
+                } else {
+                    reject(new Error('Upload failed'));
+                }
+            })
+            .catch(error => {
+                reject(error);
+            });
+        });
+    }
+    
+    // === GOOGLE SHEETS INTEGRATION ===
+    
+    async saveToSpreadsheet(data, sheetName) {
+        try {
+            const response = await fetch(this.spreadsheetUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'append',
+                    sheetName: sheetName,
+                    data: data
+                })
+            });
+            
+            const result = await response.json();
+            return { success: true, result: result };
+        } catch (error) {
+            console.error('Error saving to spreadsheet:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    // === AUTOMATIC COLLECTION CREATION ===
+    
+    async ensureCollectionsExist() {
+        const collections = ['sales', 'financials', 'projections', 'expenses', 'salaries', 'users', 'settings'];
+        
+        for (const collectionName of collections) {
+            try {
+                // Coba baca dokumen pertama untuk memastikan collection ada
+                const snapshot = await this.db.collection(collectionName).limit(1).get();
+                if (snapshot.empty) {
+                    // Buat dokumen dummy untuk membuat collection
+                    await this.db.collection(collectionName).doc('init').set({
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        initialized: true
+                    });
+                }
+            } catch (error) {
+                console.warn(`Collection ${collectionName} might not exist yet:`, error);
+            }
+        }
+    }
+    
+    // === EVENT HANDLERS ===
+    
+    onLoginSuccess() {
+        this.ensureCollectionsExist();
+        this.hideLoginPopup();
+        this.updateUIBasedOnRole();
+    }
+    
+    showLoginPopup() {
+        document.getElementById('loginPopup').classList.add('active');
+    }
+    
+    hideLoginPopup() {
+        document.getElementById('loginPopup').classList.remove('active');
+    }
+    
+    updateUIBasedOnRole() {
+        const adminOnlyElements = document.querySelectorAll('[data-admin-only]');
+        const employeeOnlyElements = document.querySelectorAll('[data-employee-only]');
+        
+        if (this.userRole === 'admin') {
+            adminOnlyElements.forEach(el => el.style.display = 'block');
+            employeeOnlyElements.forEach(el => el.style.display = 'block');
+        } else {
+            adminOnlyElements.forEach(el => el.style.display = 'none');
+            employeeOnlyElements.forEach(el => el.style.display = 'block');
+        }
+    }
 }
 
-// Initialize Integration Manager
-const integrationManager = new IntegrationManager();
+// Initialize integration system
+const integrationSystem = new FirebaseIntegration();
 
-// Export for use in other files
-window.integrationManager = integrationManager;
+// Export untuk penggunaan global
+window.integrationSystem = integrationSystem;
